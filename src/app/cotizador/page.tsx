@@ -118,7 +118,7 @@ function calculateQuoteOnServer(payload: {
       pesoReal: numericPeso,
       pesoCargable,
     },
-    validity: "31/05/2025",
+    validity: new Date().toLocaleDateString("es-CL"),
     considerations: COMMERCIAL_CONSIDERATIONS,
   };
 }
