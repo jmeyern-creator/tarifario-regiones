@@ -216,12 +216,13 @@ export default function CotizadorPage() {
 
   const dashboardStats = useMemo(() => {
     const totalQuotes = history.length + 1;
-    const averageTicket =
-      totalQuotes > 0
-        ? Math.round(
-            [quoteResult.total, ...history.map((item) => item.total)].reduce((acc, item) => acc + item, 0) / totalQuotes
-          )
-        : 0;
+   const averageTicket =
+  totalQuotes > 0
+    ? Math.round(
+        [(quoteResult?.total ?? 0), ...history.map((item) => item.total)].reduce((acc, item) => acc + item, 0) /
+          totalQuotes
+      )
+    : 0;
 
     return {
       totalQuotes,
