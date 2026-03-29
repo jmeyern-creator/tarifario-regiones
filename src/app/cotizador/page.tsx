@@ -202,13 +202,13 @@ function downloadQuotePdf(params: {
 
 export default function CotizadorPage() {
   const [role, setRole] = useState<string>("Vendedor interno");
-  const [clientName, setClientName] = useState<string>("ECU WORLDWIDE CHILE");
-  const [contactName, setContactName] = useState<string>("Cliente Demo");
+  const [clientName, setClientName] = useState<string>("");
+  const [contactName, setContactName] = useState<string>("");
   const [region, setRegion] = useState<string>("DE ANTOFAGASTA");
   const [destination, setDestination] = useState<string>("PUERTO");
   const [service, setService] = useState<string>("Estándar");
-  const [peso, setPeso] = useState<string>("573");
-  const [volumen, setVolumen] = useState<string>("3.04");
+  const [peso, setPeso] = useState<string>("0");
+  const [volumen, setVolumen] = useState<string>("0");
   const [declaredValue, setDeclaredValue] = useState<string>("0");
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
