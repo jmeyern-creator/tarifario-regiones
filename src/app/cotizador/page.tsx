@@ -274,14 +274,7 @@ export default function CotizadorPage() {
           </div>
         </section>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr",
-            gap: 24,
-            alignItems: "start",
-          }}
-        >
+        <div className="container">
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
             <section
               style={{
