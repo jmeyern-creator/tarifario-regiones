@@ -36,6 +36,7 @@ const DESTINATIONS = Object.keys(SERVER_DESTINATION_ADDONS);
 
 const COMMERCIAL_CONSIDERATIONS = [
   "Volumen máximo 5 CBM. Para volúmenes mayores, consultar evaluación especial.",
+  "Peso maximo 3 TON, Para pesos mayores, consultar evaluación especial.",
   "Dimensiones máximas referenciales: 1,80 m x 1,80 m x 1,80 m.",
   "La carga se recibe y entrega sobre camión.",
   "Carga peligrosa sujeta a revisión y aprobación previa.",
