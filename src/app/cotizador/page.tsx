@@ -277,7 +277,7 @@ export default function CotizadorPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 460px",
+            gridTemplateColumns: "1fr",
             gap: 24,
             alignItems: "start",
           }}
