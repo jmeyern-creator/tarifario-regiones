@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { Download, FileText, Lock, Package, ShieldCheck, Truck, UserCircle2 } from "lucide-react";
+import React, { useState } from "react";
 
 const BRAND = {
   name: "Tarifario Regiones",
-  subtitle: "Cotizador Transporte regiones",
-  logo: "/logo.png", // guarda tu logo en /public/logo.png
+  subtitle: "Cotizador logístico corporativo",
+  logo: "/logo.png",
 };
 
 const SERVER_RATE_TABLE: Record<string, number> = {
@@ -32,41 +31,31 @@ const SERVER_DESTINATION_ADDONS: Record<string, number> = {
   AEROPUERTO: 25000,
 };
 
+const REGIONS = Object.keys(SERVER_RATE_TABLE);
+const DESTINATIONS = Object.keys(SERVER_DESTINATION_ADDONS);
+
 const COMMERCIAL_CONSIDERATIONS = [
   "Volumen máximo 5 CBM. Para volúmenes mayores, consultar evaluación especial.",
-  "Dimensiones máximas referenciales: 1,80 m × 1,80 m × 1,80 m.",
+  "Dimensiones máximas referenciales: 1,80 m x 1,80 m x 1,80 m.",
   "La carga se recibe y entrega sobre camión.",
   "Carga peligrosa sujeta a revisión y aprobación previa.",
   "Servicio considerado en camión cerrado, salvo acuerdo comercial distinto.",
 ];
 
-const REGIONS = Object.keys(SERVER_RATE_TABLE);
-const DESTINATIONS = Object.keys(SERVER_DESTINATION_ADDONS);
-const CLIENT_TYPES = ["Cliente final", "Vendedor interno", "Cuenta corporativa"] as const;
-const SERVICES = ["Estándar", "Express", "Coordinado"] as const;
-
-type HistoryItem = {
-  id: string;
-  clientName: string;
-  contactName: string;
-  region: string;
-  destination: string;
-  service: string;
-  total: number;
-};
-
 type QuoteResult = {
   quoteNumber: string;
   total: number;
   currency: "CLP";
-  commercialSummary: string[];
   metrics: {
     pesoReal: number;
     pesoCargable: number;
   };
   validity: string;
-  considerations: string[];
 };
+
+function getTodayString(): string {
+  return new Date().toLocaleDateString("es-CL");
+}
 
 function generateQuoteNumber(): string {
   const random = Math.floor(1000 + Math.random() * 9000);
@@ -80,46 +69,30 @@ function calculateQuoteOnServer(payload: {
   destination: string;
   peso: string | number;
   volumen: string | number;
-  service: string;
-  declaredValue: string | number;
 }): QuoteResult {
-  const { region, destination, peso, volumen, service, declaredValue } = payload;
-
-  const numericPeso = Number(peso) || 0;
-  const numericVolumen = Number(volumen) || 0;
-  const numericDeclaredValue = Number(declaredValue) || 0;
+  const numericPeso = Number(payload.peso) || 0;
+  const numericVolumen = Number(payload.volumen) || 0;
 
   const pesoVolumetrico = numericVolumen * 333;
   const pesoCargable = Math.ceil(Math.max(numericPeso, pesoVolumetrico));
 
-  const regionRate = SERVER_RATE_TABLE[region] || 0;
-  const destinationAddon = SERVER_DESTINATION_ADDONS[destination] || 0;
+  const regionRate = SERVER_RATE_TABLE[payload.region] || 0;
+  const destinationAddon = SERVER_DESTINATION_ADDONS[payload.destination] || 0;
 
-  let serviceMultiplier = 1;
-  if (service === "Express") serviceMultiplier = 1.12;
-  if (service === "Coordinado") serviceMultiplier = 1.06;
-
-  const baseSubtotal = regionRate * pesoCargable * serviceMultiplier;
+  const baseSubtotal = regionRate * pesoCargable;
   const minimumFreight = 45000;
   const freight = Math.max(baseSubtotal, minimumFreight);
-  const insurance = numericDeclaredValue > 0 ? numericDeclaredValue * 0.0035 : 0;
-  const total = Math.round(freight + destinationAddon + insurance);
+  const total = Math.round(freight + destinationAddon);
 
   return {
     quoteNumber: generateQuoteNumber(),
     total,
     currency: "CLP",
-    commercialSummary: [
-      `Servicio ${service.toLowerCase()} calculado correctamente.`,
-      `Destino ${destination.toLowerCase()} incorporado a la cotización.`,
-      numericDeclaredValue > 0 ? "Se consideró cargo por valor declarado." : "Sin cargo por valor declarado.",
-    ],
     metrics: {
       pesoReal: numericPeso,
       pesoCargable,
     },
-    validity: new Date().toLocaleDateString("es-CL"),
-    considerations: COMMERCIAL_CONSIDERATIONS,
+    validity: getTodayString(),
   };
 }
 
@@ -140,11 +113,11 @@ function formatNumber(value: number): string {
 function downloadQuotePdf(params: {
   clientName: string;
   contactName: string;
-  role: string;
+  region: string;
+  destination: string;
   result: QuoteResult;
-}): void {
-  const { clientName, contactName, role, result } = params;
-
+}) {
+  const { clientName, contactName, region, destination, result } = params;
   const popup = window.open("", "_blank");
   if (!popup) return;
 
@@ -153,16 +126,18 @@ function downloadQuotePdf(params: {
       <head>
         <title>${result.quoteNumber}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 36px; color: #3f3f46; }
-          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
-          .brand { display:flex; align-items:center; gap:14px; }
-          .logo img { height: 68px; max-width: 216px; object-fit: contain; }
+          body { font-family: Arial, sans-serif; margin: 40px; color: #3f3f46; }
+          .header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #f97316; padding-bottom:16px; margin-bottom:24px; }
+          .brand { display:flex; align-items:center; gap:16px; }
+          .logo img { height:72px; max-width:220px; object-fit:contain; }
           .title { font-size:28px; font-weight:700; margin:0; }
-          .subtitle { margin-top:4px; color:#71717a; }
-          .card { border:1px solid #e4e4e7; border-radius:18px; padding:20px; margin-top:18px; }
+          .subtitle { font-size:14px; color:#71717a; margin-top:4px; }
+          .card { border:1px solid #e4e4e7; border-radius:16px; padding:20px; margin-top:18px; }
           .muted { color:#71717a; }
           .total { color:#f97316; font-size:34px; font-weight:700; margin-top:8px; }
-          .row { display:flex; justify-content:space-between; margin:12px 0; }
+          .row { display:flex; justify-content:space-between; gap:12px; margin:12px 0; }
+          ul { padding-left: 18px; }
+          li { margin: 8px 0; }
         </style>
       </head>
       <body>
@@ -176,20 +151,30 @@ function downloadQuotePdf(params: {
               <div class="subtitle">${BRAND.subtitle}</div>
             </div>
           </div>
-          <div class="muted">${result.validity}</div>
+          <div class="muted">Fecha: ${result.validity}</div>
         </div>
+
         <div class="card">
           <div class="muted">Cotización</div>
-          <div style="font-size:24px;font-weight:700;margin-top:6px;">${result.quoteNumber}</div>
-          <div style="margin-top:14px;"><strong>Cliente:</strong> ${clientName}</div>
-          <div style="margin-top:6px;"><strong>Contacto:</strong> ${contactName}</div>
-          <div style="margin-top:6px;"><strong>Tipo de usuario:</strong> ${role}</div>
+          <div style="font-size:24px; font-weight:700; margin-top:6px;">${result.quoteNumber}</div>
+          <div style="margin-top:14px;"><strong>Cliente:</strong> ${clientName || "-"}</div>
+          <div style="margin-top:6px;"><strong>Contacto:</strong> ${contactName || "-"}</div>
+          <div style="margin-top:6px;"><strong>Región:</strong> ${region}</div>
+          <div style="margin-top:6px;"><strong>Destino:</strong> ${destination}</div>
         </div>
+
         <div class="card">
           <div class="muted">Total estimado</div>
           <div class="total">${formatMoney(result.total)}</div>
           <div class="row"><span class="muted">Peso real</span><strong>${formatNumber(result.metrics.pesoReal)} kg</strong></div>
           <div class="row"><span class="muted">Peso considerado</span><strong>${formatNumber(result.metrics.pesoCargable)} kg</strong></div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:700; margin-bottom:10px;">Condiciones comerciales</div>
+          <ul>
+            ${COMMERCIAL_CONSIDERATIONS.map((item) => `<li>${item}</li>`).join("")}
+          </ul>
         </div>
       </body>
     </html>
@@ -201,270 +186,395 @@ function downloadQuotePdf(params: {
 }
 
 export default function CotizadorPage() {
-  const [role, setRole] = useState<string>("Vendedor interno");
-  const [clientName, setClientName] = useState<string>("");
-  const [contactName, setContactName] = useState<string>("");
-  const [region, setRegion] = useState<string>("DE ANTOFAGASTA");
-  const [destination, setDestination] = useState<string>("PUERTO");
-  const [service, setService] = useState<string>("Estándar");
-  const [peso, setPeso] = useState<string>("0");
-  const [volumen, setVolumen] = useState<string>("0");
-  const [declaredValue, setDeclaredValue] = useState<string>("0");
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [clientName, setClientName] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [region, setRegion] = useState("DE ANTOFAGASTA");
+  const [destination, setDestination] = useState("PUERTO");
+  const [peso, setPeso] = useState("0");
+  const [volumen, setVolumen] = useState("0");
 
- const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
+  const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
 
-   function handleCalculate(): void {
+  function handleCalculate() {
     const result = calculateQuoteOnServer({
       region,
       destination,
       peso,
       volumen,
-      service,
-      declaredValue,
     });
 
     setQuoteResult(result);
-
-    setHistory((prev) =>
-      [
-        {
-          id: result.quoteNumber,
-          clientName,
-          contactName,
-          region,
-          destination,
-          service,
-          total: result.total,
-        },
-        ...prev,
-      ].slice(0, 6)
-    );
   }
 
-  function handleReset(): void {
-    setRole("Vendedor interno");
+  function handleReset() {
     setClientName("");
     setContactName("");
-    setRegion("");
-    setDestination("");
-    setService("Estándar");
+    setRegion("DE ANTOFAGASTA");
+    setDestination("PUERTO");
     setPeso("0");
     setVolumen("0");
-    setDeclaredValue("0");
-
-    setQuoteResult(
-      calculateQuoteOnServer({
-        region: "DE ANTOFAGASTA",
-        destination: "PUERTO",
-        peso: 0,
-        volumen: 0,
-        service: "Estándar",
-        declaredValue: 0,
-      })
-    );
+    setQuoteResult(null);
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 p-4 md:p-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <section className="rounded-3xl border border-zinc-200 bg-white shadow-lg shadow-zinc-300/30">
-          <div className="p-6 md:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center">
-                    <img src={BRAND.logo} alt="Logo TGO Logística" className="h-12 object-contain" />
-                  </div>
-                  
-                </div>
-
-                <div>
-                  <h1 className="text-3xl font-semibold tracking-tight text-zinc-800 md:text-4xl">{BRAND.name}</h1>
-                  <p className="mt-2 max-w-3xl text-sm text-zinc-600 md:text-base">
-                    
-                  </p>
-                </div>
-
-                
-              </div>
-
-              
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#f5f5f5",
+        padding: "28px 20px 40px",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <div style={{ maxWidth: 1240, margin: "0 auto" }}>
+        <section
+          style={{
+            background: "#ffffff",
+            border: "1px solid #e4e4e7",
+            borderRadius: 24,
+            padding: 28,
+            boxShadow: "0 10px 30px rgba(113,113,122,0.10)",
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: 18,
+              flexWrap: "wrap",
+            }}
+          >
+            <img
+              src={BRAND.logo}
+              alt="Logo TGO Logística"
+              style={{ height: 88, objectFit: "contain" }}
+            />
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: 40,
+                  color: "#27272a",
+                  lineHeight: 1.1,
+                }}
+              >
+                {BRAND.name}
+              </h1>
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: "#71717a",
+                  fontSize: 16,
+                }}
+              >
+                {BRAND.subtitle}
+              </p>
             </div>
           </div>
         </section>
 
-        <div className="grid items-stretch gap-6 xl:grid-cols-12">
-          <div className="space-y-6 xl:col-span-7">
-            <section className="rounded-3xl border border-zinc-200 bg-white shadow-lg shadow-zinc-300/30">
-              <div className="p-6">
-                <h2 className="mb-5 text-xl font-semibold text-zinc-800">Datos comerciales</h2>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 460px",
+            gap: 24,
+            alignItems: "start",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+            <section
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e4e4e7",
+                borderRadius: 24,
+                padding: 28,
+                boxShadow: "0 10px 30px rgba(113,113,122,0.10)",
+              }}
+            >
+              <h2
+                style={{
+                  marginTop: 0,
+                  marginBottom: 22,
+                  fontSize: 28,
+                  color: "#27272a",
+                }}
+              >
+                Datos de cotización
+              </h2>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                  
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 18,
+                }}
+              >
+                <Field label="Cliente">
+                  <input
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    style={inputStyle}
+                  />
+                </Field>
 
-                  <Field label="Empresa">
-                    <input value={clientName} onChange={(e) => setClientName(e.target.value)} className={inputClass} />
-                  </Field>
+                <Field label="Contacto">
+                  <input
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    style={inputStyle}
+                  />
+                </Field>
 
-                  <Field label="Contacto">
-                    <input value={contactName} onChange={(e) => setContactName(e.target.value)} className={inputClass} />
-                  </Field>
+                <Field label="Región">
+                  <select
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    style={inputStyle}
+                  >
+                    {REGIONS.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
 
-                  
+                <Field label="Destino / Origen">
+                  <select
+                    value={destination}
+                    onChange={(e) => setDestination(e.target.value)}
+                    style={inputStyle}
+                  >
+                    {DESTINATIONS.map((item) => (
+                      <option key={item} value={item}>
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Peso real (kg)">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={peso}
+                    onChange={(e) => setPeso(e.target.value)}
+                    style={inputStyle}
+                  />
+                </Field>
+
+                <Field label="Volumen (CBM)">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={volumen}
+                    onChange={(e) => setVolumen(e.target.value)}
+                    style={inputStyle}
+                  />
+                </Field>
+
+                <div style={{ gridColumn: "1 / -1", display: "flex", gap: 12, marginTop: 8 }}>
+                  <button type="button" onClick={handleCalculate} style={primaryButtonStyle}>
+                    Calcular cotización
+                  </button>
+
+                  <button type="button" onClick={handleReset} style={secondaryButtonStyle}>
+                    Restablecer
+                  </button>
                 </div>
               </div>
             </section>
 
-            <section className="rounded-3xl border border-zinc-200 bg-white shadow-lg shadow-zinc-300/30">
-              <div className="p-6">
-                <h2 className="mb-5 text-xl font-semibold text-zinc-800">Datos operativos</h2>
+            <section
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e4e4e7",
+                borderRadius: 24,
+                padding: 28,
+                boxShadow: "0 10px 30px rgba(113,113,122,0.10)",
+              }}
+            >
+              <h2
+                style={{
+                  marginTop: 0,
+                  marginBottom: 22,
+                  fontSize: 28,
+                  color: "#27272a",
+                }}
+              >
+                Condiciones comerciales
+              </h2>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                  <Field label="Región">
-                    <select value={region} onChange={(e) => setRegion(e.target.value)} className={inputClass}>
-                      {REGIONS.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  <Field label="Destino">
-                    <select value={destination} onChange={(e) => setDestination(e.target.value)} className={inputClass}>
-                      {DESTINATIONS.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  <Field label="Peso real (kg)">
-                    <input type="number" min="0" step="0.01" value={peso} onChange={(e) => setPeso(e.target.value)} className={inputClass} />
-                  </Field>
-
-                  <Field label="Volumen (CBM)">
-                    <input type="number" min="0" step="0.01" value={volumen} onChange={(e) => setVolumen(e.target.value)} className={inputClass} />
-                  </Field>
-
-                                   <div className="md:col-span-2 flex flex-wrap gap-3 pt-2">
-                    <button
-                      onClick={handleCalculate}
-                      type="button"
-                      className="rounded-2xl bg-orange-500 px-6 py-3 font-medium text-white transition hover:bg-orange-600"
-                    >
-                      Calcular cotización
-                    </button>
-
-                    <button
-                      onClick={handleReset}
-                      type="button"
-                      className="rounded-2xl border border-zinc-200 bg-zinc-100 px-6 py-3 font-medium text-zinc-700 transition hover:bg-zinc-200"
-                    >
-                      Restablecer
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-zinc-200 bg-white shadow-lg shadow-zinc-300/30">
-              <div className="p-6">
-                <h2 className="mb-5 text-xl font-semibold text-zinc-800">Condiciones comerciales</h2>
-
-                <ul className="space-y-3 text-sm text-zinc-700">
-  {COMMERCIAL_CONSIDERATIONS.map((item) => (
-    <li key={item} className="flex items-start gap-3">
-      <ShieldCheck className="mt-0.5 h-4 w-4 text-orange-500" />
-      <span>{item}</span>
-    </li>
-  ))}
-</ul>
-              </div>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {COMMERCIAL_CONSIDERATIONS.map((item) => (
+                  <li
+                    key={item}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      marginBottom: 14,
+                      color: "#3f3f46",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: "#f97316",
+                        marginTop: 9,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             </section>
           </div>
 
-          <div className="space-y-6 xl:col-span-5">
-            <section className="flex flex-col rounded-3xl border border-orange-500/20 bg-gradient-to-b from-zinc-800 to-zinc-900 text-white shadow-lg shadow-zinc-400/20">
-              <div className="p-6">
-                <div className="mb-6 flex items-center justify-between gap-4">
-                  <h2 className="text-xl font-semibold text-white">Resultado de cotización</h2>
-                  <span className="rounded-full border border-orange-400/30 bg-orange-500/15 px-3 py-1 text-xs text-orange-100">
-                    {quoteResult.validity}
-                  </span>
-                </div>
+          <section
+            style={{
+              background: "linear-gradient(180deg, #3f3f46 0%, #18181b 100%)",
+              border: "1px solid rgba(249,115,22,0.25)",
+              borderRadius: 24,
+              padding: 28,
+              boxShadow: "0 12px 30px rgba(63,63,70,0.22)",
+              color: "#ffffff",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                marginBottom: 18,
+              }}
+            >
+              <h2 style={{ margin: 0, fontSize: 28 }}>Resultado</h2>
+              <span
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 999,
+                  background: "rgba(249,115,22,0.16)",
+                  border: "1px solid rgba(249,115,22,0.30)",
+                  fontSize: 12,
+                  color: "#ffedd5",
+                }}
+              >
+                {quoteResult?.validity ?? getTodayString()}
+              </span>
+            </div>
 
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-sm text-orange-200/80">Total estimado</p>
-                    <p className="mt-2 text-4xl font-semibold tracking-tight md:text-5xl">{formatMoney(quoteResult.total)}</p>
-                  </div>
-
-                  <div className="rounded-2xl border border-orange-400/15 bg-white/5 p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.18em] text-orange-200">Cotización</p>
-                        <p className="mt-1 text-lg font-medium">{quoteResult.quoteNumber}</p>
-                      </div>
-
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-500/15 text-orange-200">
-                        <UserCircle2 className="h-6 w-6" />
-                      </div>
-                    </div>
-
-                    <p className="mt-3 text-sm text-zinc-200">
-                      {clientName} · {contactName}
-                    </p>
-                    <p className="text-sm text-zinc-300">{role}</p>
-                  </div>
-
-                  <div className="space-y-3 rounded-2xl border border-orange-400/15 bg-white/5 p-4">
-                    <ResultRow label="Peso real" value={`${formatNumber(quoteResult.metrics.pesoReal)} kg`} />
-                    <ResultRow label="Peso considerado" value={`${formatNumber(quoteResult.metrics.pesoCargable)} kg`} highlight />
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => downloadQuotePdf({ clientName, contactName, role, result: quoteResult })}
-                      className="inline-flex items-center rounded-2xl bg-orange-500 px-5 py-3 font-medium text-white transition hover:bg-orange-600"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Descargar PDF
-                    </button>
-                  </div>
-
-                  <div className="h-px bg-white/10" />
-
-                  
-                </div>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ color: "#fdba74", fontSize: 14, marginBottom: 8 }}>
+                Total estimado
               </div>
-            </section>
+              <div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1.05 }}>
+                {formatMoney(quoteResult?.total ?? 0)}
+              </div>
+            </div>
 
-            
-           
-            
-          </div>
+            <div
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(249,115,22,0.18)",
+                borderRadius: 18,
+                padding: 20,
+                marginBottom: 18,
+              }}
+            >
+              <div
+                style={{
+                  color: "#fdba74",
+                  fontSize: 12,
+                  textTransform: "uppercase",
+                  letterSpacing: 1.2,
+                  marginBottom: 10,
+                }}
+              >
+                Cotización
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 14 }}>
+                {quoteResult ? quoteResult.quoteNumber : "Sin cotización"}
+              </div>
+              <div style={{ color: "#f4f4f5", lineHeight: 1.6 }}>
+                <div>{clientName || "-"}</div>
+                <div>{contactName || "-"}</div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(249,115,22,0.18)",
+                borderRadius: 18,
+                padding: 20,
+                marginBottom: 18,
+              }}
+            >
+              <ResultRow
+                label="Peso real"
+                value={`${formatNumber(quoteResult?.metrics.pesoReal ?? 0)} kg`}
+              />
+              <ResultRow
+                label="Peso considerado"
+                value={`${formatNumber(quoteResult?.metrics.pesoCargable ?? 0)} kg`}
+                highlight
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (quoteResult) {
+                  downloadQuotePdf({
+                    clientName,
+                    contactName,
+                    region,
+                    destination,
+                    result: quoteResult,
+                  });
+                }
+              }}
+              style={pdfButtonStyle}
+              disabled={!quoteResult}
+            >
+              Descargar PDF
+            </button>
+          </section>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 
 function Field({
   label,
-  className = "",
   children,
 }: {
   label: string;
-  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className={`space-y-2 ${className}`}>
-      <label className="block text-sm font-medium text-zinc-800">{label}</label>
+    <div>
+      <label
+        style={{
+          display: "block",
+          marginBottom: 8,
+          fontSize: 14,
+          fontWeight: 700,
+          color: "#3f3f46",
+        }}
+      >
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -480,12 +590,72 @@ function ResultRow({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 text-sm">
-      <span className="text-zinc-300">{label}</span>
-      <span className={highlight ? "font-semibold text-orange-300" : "text-white"}>{value}</span>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        gap: 12,
+        alignItems: "center",
+        padding: "10px 0",
+      }}
+    >
+      <span style={{ color: "#d4d4d8", fontSize: 15 }}>{label}</span>
+      <span
+        style={{
+          color: highlight ? "#fdba74" : "#ffffff",
+          fontWeight: highlight ? 800 : 600,
+          fontSize: 16,
+        }}
+      >
+        {value}
+      </span>
     </div>
   );
 }
 
-const inputClass =
-  "w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 text-zinc-800 outline-none transition focus:border-orange-400";
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: 14,
+  borderRadius: 14,
+  border: "1px solid #d4d4d8",
+  fontSize: 16,
+  background: "#ffffff",
+  color: "#3f3f46",
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  padding: "14px 24px",
+  background: "#f97316",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 12,
+  cursor: "pointer",
+  fontSize: 15,
+  fontWeight: 700,
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  padding: "14px 24px",
+  background: "#e4e4e7",
+  color: "#3f3f46",
+  border: "none",
+  borderRadius: 12,
+  cursor: "pointer",
+  fontSize: 15,
+  fontWeight: 700,
+};
+
+const pdfButtonStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px 20px",
+  background: "#f97316",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: 14,
+  cursor: "pointer",
+  fontSize: 15,
+  fontWeight: 700,
+  opacity: 1,
+};
