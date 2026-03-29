@@ -212,16 +212,7 @@ export default function CotizadorPage() {
   const [declaredValue, setDeclaredValue] = useState<string>("0");
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  const [quoteResult, setQuoteResult] = useState<QuoteResult>(() =>
-    calculateQuoteOnServer({
-      region: "DE ANTOFAGASTA",
-      destination: "PUERTO",
-      peso: 573,
-      volumen: 3.04,
-      service: "Estándar",
-      declaredValue: 0,
-    })
-  );
+ const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
 
   const dashboardStats = useMemo(() => {
     const totalQuotes = history.length + 1;
