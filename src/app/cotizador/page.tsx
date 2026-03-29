@@ -214,24 +214,7 @@ export default function CotizadorPage() {
 
  const [quoteResult, setQuoteResult] = useState<QuoteResult | null>(null);
 
-  const dashboardStats = useMemo(() => {
-    const totalQuotes = history.length + 1;
-   const averageTicket =
-  totalQuotes > 0
-    ? Math.round(
-        [(quoteResult?.total ?? 0), ...history.map((item) => item.total)].reduce((acc, item) => acc + item, 0) /
-          totalQuotes
-      )
-    : 0;
-
-    return {
-      totalQuotes,
-      averageTicket,
-      lastQuote: quoteResult?.quoteNumber || "-",
-    };
-  }, [history, quoteResult]);
-
-  function handleCalculate(): void {
+   function handleCalculate(): void {
     const result = calculateQuoteOnServer({
       region,
       destination,
