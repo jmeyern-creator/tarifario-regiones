@@ -61,7 +61,7 @@ function generateQuoteNumber(): string {
   const random = Math.floor(1000 + Math.random() * 9000);
   const date = new Date();
   const stamp = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
-  return `TR-${stamp}-${random}`;
+  return `TGO-${stamp}-${random}`;
 }
 
 function calculateQuoteOnServer(payload: {
@@ -524,7 +524,7 @@ export default function CotizadorPage() {
                 value={`${formatNumber(quoteResult?.metrics.pesoReal ?? 0)} kg`}
               />
               <ResultRow
-                label="Peso considerado"
+                label="Peso cargable"
                 value={`${formatNumber(quoteResult?.metrics.pesoCargable ?? 0)} kg`}
                 highlight
               />
